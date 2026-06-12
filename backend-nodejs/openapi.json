@@ -1,0 +1,1141 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Mini Muhasebe API",
+    "version": "1.0.0",
+    "description": "Cari, stok, fatura ve chatbot modülleri için Node.js + MySQL API dokümantasyonu. Bu dosya Scalar, Swagger UI veya benzeri OpenAPI araçlarına yüklenebilir."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Yerel geliştirme API adresi"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Durum",
+      "description": "Sistem, veritabanı ve dashboard durum endpointleri"
+    },
+    {
+      "name": "Cari",
+      "description": "Cari kart listeleme, ekleme, düzenleme, detay ve silme işlemleri"
+    },
+    {
+      "name": "Stok",
+      "description": "Stok kart listeleme, ekleme, düzenleme, detay ve silme işlemleri"
+    },
+    {
+      "name": "Fatura",
+      "description": "Satış faturası oluşturma, listeleme ve detay görüntüleme işlemleri"
+    },
+    {
+      "name": "ChatBot",
+      "description": "Satış verileri üzerinden kural tabanlı soru cevaplama"
+    }
+  ],
+  "paths": {
+    "/durum": {
+      "get": {
+        "tags": ["Durum"],
+        "summary": "API durumunu getirir",
+        "description": "API servisinin çalışıp çalışmadığını kontrol eder.",
+        "responses": {
+          "200": {
+            "description": "API çalışıyor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SistemDurumuResponse"
+                },
+                "example": {
+                  "basarili": true,
+                  "veri": {
+                    "uygulama": "Mini Muhasebe API",
+                    "durum": "calisiyor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/durum/veritabani": {
+      "get": {
+        "tags": ["Durum"],
+        "summary": "MySQL bağlantısını kontrol eder",
+        "description": "Sequelize üzerinden MySQL bağlantısının başarılı olup olmadığını test eder.",
+        "responses": {
+          "200": {
+            "description": "Veritabanı bağlantısı başarılı",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VeritabaniDurumuResponse"
+                },
+                "example": {
+                  "basarili": true,
+                  "veri": {
+                    "mysql": "baglandi"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Hata"
+          }
+        }
+      }
+    },
+    "/durum/ozet": {
+      "get": {
+        "tags": ["Durum"],
+        "summary": "Dashboard özet bilgilerini getirir",
+        "description": "Toplam cari sayısı, toplam stok sayısı ve bugünkü satış toplamını döndürür.",
+        "responses": {
+          "200": {
+            "description": "Dashboard özeti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardOzetiResponse"
+                },
+                "example": {
+                  "basarili": true,
+                  "veri": {
+                    "toplam_cari_sayisi": 12,
+                    "toplam_stok_sayisi": 35,
+                    "bugunku_satis_toplami": "2400.00"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cari": {
+      "get": {
+        "tags": ["Cari"],
+        "summary": "Carileri listeler",
+        "description": "Cari kartlarını listeler. İsteğe bağlı `arama` parametresiyle cari kodu, cari adı, vergi no/TCKN veya e-posta içinde arama yapılabilir.",
+        "parameters": [
+          {
+            "name": "arama",
+            "in": "query",
+            "required": false,
+            "description": "Cari listesinde aranacak metin",
+            "schema": {
+              "type": "string",
+              "example": "ABC"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cari listesi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CariListeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Cari"],
+        "summary": "Yeni cari oluşturur",
+        "description": "Yeni cari kaydı oluşturur. `cari_adi` ve `cari_kodu` zorunludur. `e_posta` girilirse hem e-posta formatı hem de `@` sonrasındaki domain için Google DNS A kaydı kontrol edilir. Domain yoksa kayıt yapılmaz.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CariOlusturRequest"
+              },
+              "example": {
+                "cari_kodu": "CARI-001",
+                "cari_adi": "Örnek Müşteri",
+                "vergi_no_tckn": "1234567890",
+                "telefon": "05555555555",
+                "e_posta": "info@example.com",
+                "adres": "İstanbul"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cari oluşturuldu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CariResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validasyon hatası. Örneğin e-posta domain kaydı bulunamadı.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HataResponse"
+                },
+                "example": {
+                  "basarili": false,
+                  "mesaj": "dsfgds.com icin DNS A kaydi bulunamadi."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cari/{id}": {
+      "get": {
+        "tags": ["Cari"],
+        "summary": "Cari detayını getirir",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cari detayı",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CariResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Cari"],
+        "summary": "Cari kaydını günceller",
+        "description": "Cari bilgilerini günceller. `e_posta` girilirse e-posta domaininin DNS A kaydı kontrol edilir.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CariGuncelleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cari güncellendi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CariResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Hata"
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Cari"],
+        "summary": "Cari kaydını siler",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cari silindi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MesajResponse"
+                },
+                "example": {
+                  "basarili": true,
+                  "mesaj": "Cari silindi."
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      }
+    },
+    "/stok": {
+      "get": {
+        "tags": ["Stok"],
+        "summary": "Stokları listeler",
+        "description": "Stok kartlarını listeler. İsteğe bağlı `arama` parametresiyle stok kodu veya ürün adı içinde arama yapılabilir.",
+        "parameters": [
+          {
+            "name": "arama",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "mouse"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stok listesi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StokListeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Stok"],
+        "summary": "Yeni stok oluşturur",
+        "description": "Yeni stok kartı oluşturur. `stok_kodu` benzersiz olmalıdır.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StokOlusturRequest"
+              },
+              "example": {
+                "stok_kodu": "STK-001",
+                "urun_adi": "Kablosuz Mouse",
+                "birim": "Adet",
+                "birim_fiyat": 350,
+                "kdv_orani": 20,
+                "mevcut_stok_miktari": 75
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stok oluşturuldu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StokResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Hata"
+          }
+        }
+      }
+    },
+    "/stok/{id}": {
+      "get": {
+        "tags": ["Stok"],
+        "summary": "Stok detayını getirir",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stok detayı",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StokResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Stok"],
+        "summary": "Stok kaydını günceller",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StokGuncelleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stok güncellendi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StokResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Stok"],
+        "summary": "Stok kaydını siler",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stok silindi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MesajResponse"
+                },
+                "example": {
+                  "basarili": true,
+                  "mesaj": "Stok silindi."
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      }
+    },
+    "/fatura": {
+      "get": {
+        "tags": ["Fatura"],
+        "summary": "Faturaları listeler",
+        "description": "Satış faturalarını cari bilgisiyle beraber listeler.",
+        "responses": {
+          "200": {
+            "description": "Fatura listesi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaturaListeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Fatura"],
+        "summary": "Satış faturası oluşturur",
+        "description": "Cari ve stok kalemleriyle satış faturası oluşturur. Fatura kaydedilirken stok miktarları transaction içinde düşürülür. Yetersiz stok varsa işlem yapılmaz.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaturaOlusturRequest"
+              },
+              "example": {
+                "cari_id": 1,
+                "fatura_tarihi": "2026-06-10T12:00:00.000Z",
+                "kalemler": [
+                  {
+                    "stok_id": 1,
+                    "miktar": 2,
+                    "birim_fiyat": 350,
+                    "kdv_orani": 20
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Fatura oluşturuldu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaturaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Hata"
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      }
+    },
+    "/fatura/{id}": {
+      "get": {
+        "tags": ["Fatura"],
+        "summary": "Fatura detayını getirir",
+        "description": "Fatura, cari ve fatura kalemlerini stok bilgileriyle birlikte getirir.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fatura detayı",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaturaResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Bulunamadi"
+          }
+        }
+      }
+    },
+    "/chatbot/sor": {
+      "post": {
+        "tags": ["ChatBot"],
+        "summary": "ChatBot'a soru sorar",
+        "description": "Satış verileri üzerinden kural tabanlı cevap döndürür. Örnek sorular: En çok satılan ürünüm hangisi?, Bugünkü satış toplamım ne kadar?, En az stoğu kalan ürünler hangileri?",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatbotSoruRequest"
+              },
+              "example": {
+                "soru": "En çok satılan ürünüm hangisi?"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ChatBot cevabı",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatbotResponse"
+                },
+                "example": {
+                  "basarili": true,
+                  "veri": {
+                    "soru": "En çok satılan ürünüm hangisi?",
+                    "cevap": "En cok satilan urun Kablosuz Mouse. Toplam satis miktari: 12."
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Hata"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Kayıt ID değeri",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      }
+    },
+    "responses": {
+      "Hata": {
+        "description": "İstek işlenemedi",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/HataResponse"
+            },
+            "example": {
+              "basarili": false,
+              "mesaj": "Beklenmeyen bir hata olustu."
+            }
+          }
+        }
+      },
+      "Bulunamadi": {
+        "description": "Kayıt bulunamadı",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/HataResponse"
+            },
+            "example": {
+              "basarili": false,
+              "mesaj": "Kayit bulunamadi."
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Cari": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "cari_kodu": {
+            "type": "string",
+            "example": "CARI-001"
+          },
+          "cari_adi": {
+            "type": "string",
+            "example": "Örnek Müşteri"
+          },
+          "vergi_no_tckn": {
+            "type": "string",
+            "nullable": true,
+            "example": "1234567890"
+          },
+          "telefon": {
+            "type": "string",
+            "nullable": true,
+            "example": "05555555555"
+          },
+          "e_posta": {
+            "type": "string",
+            "format": "email",
+            "nullable": true,
+            "example": "info@example.com",
+            "description": "E-posta girilirse @ sonrasındaki domain DNS A kaydı ile kontrol edilir."
+          },
+          "adres": {
+            "type": "string",
+            "nullable": true,
+            "example": "İstanbul"
+          },
+          "olusturma_tarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "guncelleme_tarihi": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CariOlusturRequest": {
+        "type": "object",
+        "required": ["cari_kodu", "cari_adi"],
+        "properties": {
+          "cari_kodu": {
+            "type": "string",
+            "example": "CARI-001"
+          },
+          "cari_adi": {
+            "type": "string",
+            "example": "Örnek Müşteri"
+          },
+          "vergi_no_tckn": {
+            "type": "string",
+            "example": "1234567890"
+          },
+          "telefon": {
+            "type": "string",
+            "example": "05555555555"
+          },
+          "e_posta": {
+            "type": "string",
+            "format": "email",
+            "example": "info@example.com"
+          },
+          "adres": {
+            "type": "string",
+            "example": "İstanbul"
+          }
+        }
+      },
+      "CariGuncelleRequest": {
+        "type": "object",
+        "required": ["cari_adi"],
+        "properties": {
+          "cari_adi": {
+            "type": "string",
+            "example": "Güncel Müşteri"
+          },
+          "vergi_no_tckn": {
+            "type": "string",
+            "example": "1234567890"
+          },
+          "telefon": {
+            "type": "string",
+            "example": "05555555555"
+          },
+          "e_posta": {
+            "type": "string",
+            "format": "email",
+            "example": "info@example.com"
+          },
+          "adres": {
+            "type": "string",
+            "example": "Ankara"
+          }
+        }
+      },
+      "Stok": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stok_kodu": {
+            "type": "string",
+            "example": "STK-001"
+          },
+          "urun_adi": {
+            "type": "string",
+            "example": "Kablosuz Mouse"
+          },
+          "birim": {
+            "type": "string",
+            "example": "Adet"
+          },
+          "birim_fiyat": {
+            "type": "number",
+            "format": "decimal",
+            "example": 350
+          },
+          "kdv_orani": {
+            "type": "number",
+            "format": "decimal",
+            "example": 20
+          },
+          "mevcut_stok_miktari": {
+            "type": "integer",
+            "example": 75
+          },
+          "olusturma_tarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "guncelleme_tarihi": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StokOlusturRequest": {
+        "type": "object",
+        "required": ["stok_kodu", "urun_adi", "birim"],
+        "properties": {
+          "stok_kodu": {
+            "type": "string",
+            "example": "STK-001"
+          },
+          "urun_adi": {
+            "type": "string",
+            "example": "Kablosuz Mouse"
+          },
+          "birim": {
+            "type": "string",
+            "example": "Adet"
+          },
+          "birim_fiyat": {
+            "type": "number",
+            "example": 350
+          },
+          "kdv_orani": {
+            "type": "number",
+            "example": 20
+          },
+          "mevcut_stok_miktari": {
+            "type": "integer",
+            "example": 75
+          }
+        }
+      },
+      "StokGuncelleRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StokOlusturRequest"
+          }
+        ]
+      },
+      "FaturaKalemiRequest": {
+        "type": "object",
+        "required": ["stok_id", "miktar", "birim_fiyat", "kdv_orani"],
+        "properties": {
+          "stok_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "miktar": {
+            "type": "integer",
+            "example": 2,
+            "description": "Tam sayı olmalıdır."
+          },
+          "birim_fiyat": {
+            "type": "number",
+            "example": 350
+          },
+          "kdv_orani": {
+            "type": "number",
+            "example": 20
+          }
+        }
+      },
+      "FaturaOlusturRequest": {
+        "type": "object",
+        "required": ["cari_id", "kalemler"],
+        "properties": {
+          "cari_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "fatura_tarihi": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-10T12:00:00.000Z"
+          },
+          "kalemler": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/FaturaKalemiRequest"
+            }
+          }
+        }
+      },
+      "FaturaKalemi": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "fatura_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stok_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "miktar": {
+            "type": "integer",
+            "example": 2
+          },
+          "birim_fiyat": {
+            "type": "number",
+            "example": 350
+          },
+          "kdv_orani": {
+            "type": "number",
+            "example": 20
+          },
+          "satir_toplam": {
+            "type": "number",
+            "example": 840
+          },
+          "stok": {
+            "$ref": "#/components/schemas/Stok"
+          }
+        }
+      },
+      "Fatura": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "cari_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "fatura_tarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ara_toplam": {
+            "type": "number",
+            "example": 700
+          },
+          "kdv_toplam": {
+            "type": "number",
+            "example": 140
+          },
+          "genel_toplam": {
+            "type": "number",
+            "example": 840
+          },
+          "cari": {
+            "$ref": "#/components/schemas/Cari"
+          },
+          "kalemler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FaturaKalemi"
+            }
+          }
+        }
+      },
+      "ChatbotSoruRequest": {
+        "type": "object",
+        "required": ["soru"],
+        "properties": {
+          "soru": {
+            "type": "string",
+            "example": "En çok satılan ürünüm hangisi?"
+          }
+        }
+      },
+      "ChatbotCevabi": {
+        "type": "object",
+        "properties": {
+          "soru": {
+            "type": "string",
+            "example": "En çok satılan ürünüm hangisi?"
+          },
+          "cevap": {
+            "type": "string",
+            "example": "En cok satilan urun Kablosuz Mouse. Toplam satis miktari: 12."
+          }
+        }
+      },
+      "DashboardOzeti": {
+        "type": "object",
+        "properties": {
+          "toplam_cari_sayisi": {
+            "type": "integer",
+            "example": 12
+          },
+          "toplam_stok_sayisi": {
+            "type": "integer",
+            "example": 35
+          },
+          "bugunku_satis_toplami": {
+            "type": "number",
+            "example": 2400
+          }
+        }
+      },
+      "CariResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "$ref": "#/components/schemas/Cari"
+          }
+        }
+      },
+      "CariListeResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Cari"
+            }
+          }
+        }
+      },
+      "StokResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "$ref": "#/components/schemas/Stok"
+          }
+        }
+      },
+      "StokListeResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Stok"
+            }
+          }
+        }
+      },
+      "FaturaResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "$ref": "#/components/schemas/Fatura"
+          }
+        }
+      },
+      "FaturaListeResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Fatura"
+            }
+          }
+        }
+      },
+      "ChatbotResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "$ref": "#/components/schemas/ChatbotCevabi"
+          }
+        }
+      },
+      "DashboardOzetiResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "$ref": "#/components/schemas/DashboardOzeti"
+          }
+        }
+      },
+      "SistemDurumuResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "type": "object",
+            "properties": {
+              "uygulama": {
+                "type": "string",
+                "example": "Mini Muhasebe API"
+              },
+              "durum": {
+                "type": "string",
+                "example": "calisiyor"
+              }
+            }
+          }
+        }
+      },
+      "VeritabaniDurumuResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "veri": {
+            "type": "object",
+            "properties": {
+              "mysql": {
+                "type": "string",
+                "example": "baglandi"
+              }
+            }
+          }
+        }
+      },
+      "MesajResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": true
+          },
+          "mesaj": {
+            "type": "string",
+            "example": "Islem basarili."
+          }
+        }
+      },
+      "HataResponse": {
+        "type": "object",
+        "properties": {
+          "basarili": {
+            "type": "boolean",
+            "example": false
+          },
+          "mesaj": {
+            "type": "string",
+            "example": "Beklenmeyen bir hata olustu."
+          }
+        }
+      }
+    }
+  }
+}
